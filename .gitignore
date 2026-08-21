@@ -113,5 +113,3 @@ temp/
 client/public/__manus__/version.json
 .project-config.json
 
-# Vercel serverless function bundle (generated from server/vercelHandler.ts at build time)
-/api/index.js
