@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1787198370971,
+      "tag": "0000_cute_red_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1787200073350,
+      "tag": "0001_lumpy_black_widow",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787200942781,
+      "tag": "0002_military_synch",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1787204799647,
+      "tag": "0003_brown_gabe_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1787205047021,
+      "tag": "0004_aromatic_ogun",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1787237312454,
+      "tag": "0005_purple_daimon_hellstrom",
+      "breakpoints": true
+    }
+  ]
+}
