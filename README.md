@@ -8,7 +8,7 @@ financial-summary emails.
 ## Stack
 
 - **Frontend:** React 19 + Vite, Wouter, TanStack Query, tRPC client, Tailwind CSS + shadcn/ui (Radix)
-- **Backend:** Express + tRPC server, Drizzle ORM over Postgres
+- **Backend:** Express + tRPC server, Drizzle ORM over MySQL
 - **Payments:** Stripe Checkout + webhooks
 - **Testing:** Vitest
 - **Deploy:** Vercel
@@ -46,7 +46,7 @@ pnpm dev       # start the dev server
 
 Set these in a local `.env` (never commit secrets):
 
-- `DATABASE_URL` — Postgres connection string
+- `DATABASE_URL` — MySQL connection string
 - OAuth / session configuration
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` — for invoice checkout and webhooks
 - Transactional email provider credentials (optional, for scheduled summaries)

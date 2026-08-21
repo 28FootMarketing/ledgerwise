@@ -10,6 +10,6 @@ The application needs a valid `DATABASE_URL`, OAuth configuration, session secre
 
 ## Database and verification
 
-Run the reviewed SQL migrations in `drizzle/migrations/` against your MySQL-compatible database in sequence. Then use `pnpm check` for TypeScript validation and `pnpm test` for the automated suite. Start the development server with `pnpm dev`.
+Run the reviewed SQL migrations in `drizzle/` against your MySQL database in sequence (or apply them with `pnpm db:push`). Then use `pnpm check` for TypeScript validation and `pnpm test` for the automated suite. Start the development server with `pnpm dev`.
 
 > Do not commit `.env` files, database credentials, Stripe secrets, or transactional-email keys to source control.
