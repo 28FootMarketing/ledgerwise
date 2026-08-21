@@ -14,7 +14,7 @@ import * as db from "./db";
 import { accountingRouter } from "./routers/accounting";
 
 const context = {
-  user: { id: 77, openId: "tag-owner", name: "Tag Owner", email: "owner@example.com", loginMethod: "manus", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() },
+  user: { id: 77, authUserId: "00000000-0000-0000-0000-000000000077", name: "Tag Owner", email: "owner@example.com", loginMethod: "email", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() },
   req: { protocol: "https", headers: {} },
   res: {},
 } as any;

@@ -1,20 +1,27 @@
 import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { nanoid } from "nanoid";
 import { accounts, contacts, expenses, expenseTags, invoiceLineItems, invoices, journalEntries, journalEntryTags, journalLines, quoteLineItems, quotes, serviceCatalog, summaryDeliveries, summarySettings, tags, type AccountType, type InsertUser, users } from "../drizzle/schema";
 import { calculateInvoiceTotals, calculateProfitAndLoss, effectiveInvoiceStatus, summarizeFinancials, validateBalancedJournalLines, type JournalLineDraft } from "./accountingMath";
 import { calculateQuoteTotals, type QuoteLineDraft } from "./quoteMath";
 import { assembleQuoteRecords, assertQuoteWorkspace, buildInvoiceFromQuote } from "./quoteService";
 import { assertTagOwnership, attachPersistedTags, buildTagSummary, filterTransactionsByDate, filterTransactionsByTag, normalizeTagIds } from "./tagRules";
-import { ENV } from './_core/env';
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _client: ReturnType<typeof postgres> | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
+// `prepare: false` is required against Supabase's pooled connection
+// (port 6543 / pgbouncer transaction mode) — the pooler does not support
+// server-side prepared statements across pooled connections, which is the
+// mode Vercel serverless functions must use (no long-lived connections).
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _client = postgres(process.env.DATABASE_URL, { prepare: false, max: 1 });
+      _db = drizzle(_client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -24,8 +31,8 @@ export async function getDb() {
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
+  if (!user.authUserId) {
+    throw new Error("User authUserId is required for upsert");
   }
 
   const db = await getDb();
@@ -36,7 +43,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   try {
     const values: InsertUser = {
-      openId: user.openId,
+      authUserId: user.authUserId,
     };
     const updateSet: Record<string, unknown> = {};
 
@@ -60,20 +67,22 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.role !== undefined) {
       values.role = user.role;
       updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+    } else if (user.email === ENV.ownerEmail) {
+      values.role = "admin";
+      updateSet.role = "admin";
     }
 
     if (!values.lastSignedIn) {
       values.lastSignedIn = new Date();
     }
 
+    updateSet.updatedAt = new Date();
     if (Object.keys(updateSet).length === 0) {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.authUserId,
       set: updateSet,
     });
   } catch (error) {
@@ -82,14 +91,14 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 }
 
-export async function getUserByOpenId(openId: string) {
+export async function getUserByAuthUserId(authUserId: string) {
   const db = await getDb();
   if (!db) {
     console.warn("[Database] Cannot get user: database not available");
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  const result = await db.select().from(users).where(eq(users.authUserId, authUserId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
 }
@@ -106,7 +115,8 @@ const systemAccounts: Array<{ code: string; name: string; type: AccountType }> =
 export async function ensureLedgerSetup(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable.");
-  await db.insert(accounts).values(systemAccounts.map(account => ({ ...account, userId, isSystem: "yes" as const }))).onDuplicateKeyUpdate({
+  await db.insert(accounts).values(systemAccounts.map(account => ({ ...account, userId, isSystem: "yes" as const }))).onConflictDoUpdate({
+    target: [accounts.userId, accounts.code],
     set: { updatedAt: new Date() },
   });
 }
@@ -128,7 +138,7 @@ export async function createContact(input: { userId: number; kind: "customer" | 
 export async function updateContact(userId: number, id: number, input: { name: string; email?: string | null; phone?: string | null; address?: string | null; notes?: string | null }) {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable.");
-  await db.update(contacts).set(input).where(and(eq(contacts.id, id), eq(contacts.userId, userId)));
+  await db.update(contacts).set({ ...input, updatedAt: new Date() }).where(and(eq(contacts.id, id), eq(contacts.userId, userId)));
 }
 
 export async function listAccounts(userId: number) {
@@ -211,8 +221,8 @@ async function insertBalancedJournalEntry(input: { userId: number; postedAt: Dat
   await assertOwnedAccounts(input.userId, input.lines.map(line => line.accountId));
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable.");
-  const result: any = await db.insert(journalEntries).values({ userId: input.userId, postedAt: input.postedAt, memo: input.memo ?? null, sourceType: input.sourceType, sourceId: input.sourceId ?? null });
-  const journalEntryId = Number(result.insertId ?? result[0]?.insertId);
+  const [inserted] = await db.insert(journalEntries).values({ userId: input.userId, postedAt: input.postedAt, memo: input.memo ?? null, sourceType: input.sourceType, sourceId: input.sourceId ?? null }).returning({ id: journalEntries.id });
+  const journalEntryId = inserted?.id;
   if (!journalEntryId) throw new Error("Could not create the journal entry.");
   await db.insert(journalLines).values(input.lines.map(line => ({ ...line, journalEntryId })));
   return journalEntryId;
@@ -252,14 +262,15 @@ export async function createExpense(input: { userId: number; vendorId?: number |
     if (!vendor[0]) throw new Error("Choose a vendor from your own vendor directory.");
   }
   const { tagIds: _tagIds, ...expenseValues } = input;
-  const result: any = await db.insert(expenses).values(expenseValues);
-  const expenseId = Number(result.insertId ?? result[0]?.insertId);
+  const [inserted] = await db.insert(expenses).values(expenseValues).returning({ id: expenses.id });
+  const expenseId = inserted?.id;
+  if (!expenseId) throw new Error("Could not create the expense.");
   if (tagIds.length) await db.insert(expenseTags).values(tagIds.map(tagId => ({ expenseId, tagId })));
   const journalEntryId = await insertBalancedJournalEntry({ userId: input.userId, postedAt: input.incurredAt, memo: input.notes ?? "Expense recorded", sourceType: "expense", sourceId: expenseId, lines: [
     { accountId: input.expenseAccountId, debitCents: input.amountCents, creditCents: 0, description: "Expense" },
     { accountId: input.paymentAccountId, debitCents: 0, creditCents: input.amountCents, description: "Payment" },
   ] });
-  await db.update(expenses).set({ journalEntryId }).where(and(eq(expenses.id, expenseId), eq(expenses.userId, input.userId)));
+  await db.update(expenses).set({ journalEntryId, updatedAt: new Date() }).where(and(eq(expenses.id, expenseId), eq(expenses.userId, input.userId)));
 }
 
 export async function listExpenses(userId: number, range?: { start: Date; end: Date }) {
@@ -281,8 +292,9 @@ export async function createInvoice(input: { userId: number; customerId: number;
   const customer = await db.select().from(contacts).where(and(eq(contacts.id, input.customerId), eq(contacts.userId, input.userId), eq(contacts.kind, "customer"))).limit(1);
   if (!customer[0]) throw new Error("Choose a customer from your own customer directory.");
   const totals = calculateInvoiceTotals(input.items, input.taxCents ?? 0);
-  const result: any = await db.insert(invoices).values({ userId: input.userId, customerId: input.customerId, number: input.number.trim(), publicToken: nanoid(24), issueAt: input.issueAt, dueAt: input.dueAt, notes: input.notes ?? null, subtotalCents: totals.subtotalCents, taxCents: totals.taxCents, totalCents: totals.totalCents });
-  const invoiceId = Number(result.insertId ?? result[0]?.insertId);
+  const [inserted] = await db.insert(invoices).values({ userId: input.userId, customerId: input.customerId, number: input.number.trim(), publicToken: nanoid(24), issueAt: input.issueAt, dueAt: input.dueAt, notes: input.notes ?? null, subtotalCents: totals.subtotalCents, taxCents: totals.taxCents, totalCents: totals.totalCents }).returning({ id: invoices.id });
+  const invoiceId = inserted?.id;
+  if (!invoiceId) throw new Error("Could not create the invoice.");
   await db.insert(invoiceLineItems).values(totals.items.map(item => ({ ...item, invoiceId })));
   return invoiceId;
 }
@@ -303,7 +315,7 @@ export async function createService(input: { userId: number; name: string; categ
 export async function archiveService(userId: number, serviceId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable.");
-  await db.update(serviceCatalog).set({ isActive: "no" }).where(and(eq(serviceCatalog.id, serviceId), eq(serviceCatalog.userId, userId)));
+  await db.update(serviceCatalog).set({ isActive: "no", updatedAt: new Date() }).where(and(eq(serviceCatalog.id, serviceId), eq(serviceCatalog.userId, userId)));
 }
 
 async function assertOwnedCustomer(userId: number, customerId: number) {
@@ -327,8 +339,8 @@ export async function createQuote(input: { userId: number; customerId: number; n
   await assertOwnedServices(input.userId, totals.items.flatMap(item => item.serviceCatalogId ? [item.serviceCatalogId] : []));
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable.");
-  const result: any = await db.insert(quotes).values({ userId: input.userId, customerId: input.customerId, number: input.number.trim(), title: input.title.trim(), issueAt: input.issueAt, validUntil: input.validUntil ?? null, notes: input.notes?.trim() || null, oneTimeCents: totals.oneTimeCents, monthlyCents: totals.monthlyCents });
-  const quoteId = Number(result.insertId ?? result[0]?.insertId);
+  const [inserted] = await db.insert(quotes).values({ userId: input.userId, customerId: input.customerId, number: input.number.trim(), title: input.title.trim(), issueAt: input.issueAt, validUntil: input.validUntil ?? null, notes: input.notes?.trim() || null, oneTimeCents: totals.oneTimeCents, monthlyCents: totals.monthlyCents }).returning({ id: quotes.id });
+  const quoteId = inserted?.id;
   if (!quoteId) throw new Error("Could not create the quote.");
   await db.insert(quoteLineItems).values(totals.items.map(item => ({ quoteId, serviceCatalogId: item.serviceCatalogId ?? null, description: item.description, category: item.category ?? null, quantity: item.quantity, unitAmountCents: item.unitAmountCents, lineTotalCents: item.lineTotalCents, billingFrequency: item.billingFrequency })));
   return quoteId;
@@ -376,7 +388,7 @@ export async function convertQuoteToInvoice(input: { userId: number; quoteId: nu
   const conversion = buildInvoiceFromQuote(quote, items, input.invoiceNumber, input.dueAt);
   if (conversion.alreadyConverted) return conversion;
   const invoiceId = await createInvoice({ userId: input.userId, ...conversion.input });
-  await db.update(quotes).set({ status: "converted", convertedInvoiceId: invoiceId }).where(and(eq(quotes.id, quote.id), eq(quotes.userId, input.userId)));
+  await db.update(quotes).set({ status: "converted", convertedInvoiceId: invoiceId, updatedAt: new Date() }).where(and(eq(quotes.id, quote.id), eq(quotes.userId, input.userId)));
   return { invoiceId, alreadyConverted: false };
 }
 
@@ -426,7 +438,7 @@ export async function sendInvoice(userId: number, invoiceId: number) {
     { accountId: receivable.id, debitCents: invoice.totalCents, creditCents: 0, description: "Accounts receivable" },
     { accountId: revenue.id, debitCents: 0, creditCents: invoice.totalCents, description: "Sales revenue" },
   ] });
-  await db.update(invoices).set({ status: "sent", journalEntryId }).where(and(eq(invoices.id, invoice.id), eq(invoices.userId, userId)));
+  await db.update(invoices).set({ status: "sent", journalEntryId, updatedAt: new Date() }).where(and(eq(invoices.id, invoice.id), eq(invoices.userId, userId)));
 }
 
 export async function getFinancialSummary(userId: number, range?: { start: Date; end: Date; tagId?: number }) {
@@ -471,7 +483,7 @@ export async function getTagSummary(userId: number, range?: { start: Date; end: 
 export async function setInvoiceCheckoutSession(userId: number, invoiceId: number, sessionId: string) {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable.");
-  await db.update(invoices).set({ stripeCheckoutSessionId: sessionId }).where(and(eq(invoices.id, invoiceId), eq(invoices.userId, userId)));
+  await db.update(invoices).set({ stripeCheckoutSessionId: sessionId, updatedAt: new Date() }).where(and(eq(invoices.id, invoiceId), eq(invoices.userId, userId)));
 }
 
 export async function markInvoicePaidByStripe(input: { invoiceId: number; checkoutSessionId?: string | null; paymentIntentId?: string | null }) {
@@ -503,6 +515,7 @@ export async function markInvoicePaidByStripe(input: { invoiceId: number; checko
     journalEntryId,
     stripeCheckoutSessionId: input.checkoutSessionId ?? invoice.stripeCheckoutSessionId,
     stripePaymentIntentId: input.paymentIntentId ?? invoice.stripePaymentIntentId,
+    updatedAt: new Date(),
   }).where(eq(invoices.id, invoice.id));
   return { alreadyPaid: false, invoiceId: invoice.id };
 }
@@ -533,7 +546,8 @@ export async function getSummarySettings(userId: number) {
 export async function saveSummarySettings(input: { userId: number; recipientEmail: string; cadence: "weekly" | "monthly"; dayOfWeek: number; dayOfMonth: number; timezone: string; enabled: "yes" | "no" }) {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable.");
-  await db.insert(summarySettings).values(input).onDuplicateKeyUpdate({
+  await db.insert(summarySettings).values(input).onConflictDoUpdate({
+    target: summarySettings.userId,
     set: {
       recipientEmail: input.recipientEmail,
       cadence: input.cadence,
@@ -541,21 +555,16 @@ export async function saveSummarySettings(input: { userId: number; recipientEmai
       dayOfMonth: input.dayOfMonth,
       timezone: input.timezone,
       enabled: input.enabled,
+      updatedAt: new Date(),
     },
   });
 }
 
-export async function setSummaryScheduleTask(settingsId: number, taskUid: string | null) {
+/** All workspaces with scheduled delivery turned on — the daily cron scans this list and decides who is due today. */
+export async function listEnabledSummarySettings() {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable.");
-  await db.update(summarySettings).set({ scheduleCronTaskUid: taskUid }).where(eq(summarySettings.id, settingsId));
-}
-
-export async function getSummarySettingsByTaskUid(taskUid: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database is unavailable.");
-  const rows = await db.select().from(summarySettings).where(eq(summarySettings.scheduleCronTaskUid, taskUid)).limit(1);
-  return rows[0];
+  return db.select().from(summarySettings).where(eq(summarySettings.enabled, "yes"));
 }
 
 export async function recordSummaryDelivery(input: { settingsId: number; periodStart: Date; periodEnd: Date; deliveryStatus: "sent" | "failed"; providerMessageId?: string | null; errorMessage?: string | null }) {

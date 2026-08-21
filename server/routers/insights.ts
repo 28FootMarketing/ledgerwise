@@ -1,21 +1,14 @@
 import { z } from "zod";
-import { invokeLLM, listLLMModels } from "../_core/llm";
+import { invokeLLM } from "../_core/llm";
 import * as db from "../db";
 import { protectedProcedure, router } from "../_core/trpc";
-
-async function chooseFinanceModel() {
-  const { data } = await listLLMModels();
-  return data.find(model => model.id === "gpt-5-mini")?.id ?? data[0]?.id;
-}
 
 const guidance = `You are the LedgerWise finance assistant. Answer only from the supplied authenticated business data. Never invent money amounts, invoices, dates, account balances, vendors, trends, or facts. If the data cannot answer the question, say exactly what information is missing. State money amounts in USD based on cents from the data. Do not present tax, legal, audit, investment, or regulatory advice as professional advice. Keep answers concise and explain the relevant data basis.`;
 
 export const insightsRouter = router({
   ask: protectedProcedure.input(z.object({ question: z.string().trim().min(1).max(1200) })).mutation(async ({ ctx, input }) => {
     const context = await db.getAssistantContext(ctx.user.id);
-    const model = await chooseFinanceModel();
     const response = await invokeLLM({
-      model,
       messages: [
         { role: "system", content: guidance },
         { role: "user", content: `Authenticated financial data:\n${JSON.stringify(context)}\n\nQuestion: ${input.question}` },
@@ -27,9 +20,7 @@ export const insightsRouter = router({
   }),
   categorizeExpense: protectedProcedure.input(z.object({ description: z.string().trim().min(2).max(280), amountCents: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
     const context = await db.getAssistantContext(ctx.user.id);
-    const model = await chooseFinanceModel();
     const response = await invokeLLM({
-      model,
       messages: [
         { role: "system", content: `${guidance} Categorize an expense using only the supplied chart of accounts. If no account is a credible match, return accountId null.` },
         { role: "user", content: `Chart of accounts: ${JSON.stringify(context.accounts)}\nExpense description: ${input.description}\nAmount cents: ${input.amountCents}` },

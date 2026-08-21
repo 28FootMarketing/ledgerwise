@@ -1,7 +1,6 @@
 import { z } from "zod";
 import * as db from "../db";
 import { protectedProcedure, router } from "../_core/trpc";
-import { configureSummarySchedule, sessionTokenFromRequest } from "../summaryScheduler";
 
 export const settingsRouter = router({
   summary: router({
@@ -18,20 +17,7 @@ export const settingsRouter = router({
         throw new Error("Add the dedicated email provider credentials before enabling scheduled delivery.");
       }
       await db.saveSummarySettings({ userId: ctx.user.id, ...input });
-      const settings = await db.getSummarySettings(ctx.user.id);
-      if (!settings) throw new Error("Summary settings could not be saved.");
-      if (input.enabled === "yes") {
-        const taskUid = await configureSummarySchedule({
-          settingsId: settings.id,
-          scheduleCronTaskUid: settings.scheduleCronTaskUid,
-          cadence: input.cadence,
-          dayOfWeek: input.dayOfWeek,
-          dayOfMonth: input.dayOfMonth,
-          userSession: sessionTokenFromRequest(ctx.req),
-        });
-        return { success: true, taskUid };
-      }
-      return { success: true, taskUid: settings.scheduleCronTaskUid ?? null };
+      return { success: true };
     }),
   }),
 });
