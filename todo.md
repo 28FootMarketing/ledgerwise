@@ -18,8 +18,8 @@
 - [x] Provide secure public invoice links with a client-facing, print-ready payment view.
 - [x] Build configurable weekly or monthly financial-summary delivery settings, including schedule persistence and idempotent scheduled execution.
 - [x] Integrate a transactional email provider for scheduled summary delivery after credentials are supplied.
-- [ ] Configure the selected dedicated transactional email provider with a verified sender identity and server-side credentials.
-- [ ] Activate live scheduled email delivery after the owner supplies the deferred dedicated-email credentials.
+- [x] Configure the selected dedicated transactional email provider with a verified sender identity and server-side credentials. (Resend, mail.28footsystems.com, scoped key issued)
+- [x] Activate live scheduled email delivery after the owner supplies the deferred dedicated-email credentials. (RESEND_API_KEY + RESEND_FROM_EMAIL env vars)
 - [x] Add automated test coverage for authentication gates, double-entry validation, invoice status calculation, dashboard calculations, and payment-webhook behavior.
 - [x] Validate the authenticated application dashboard and settings in desktop and mobile browser layouts.
 - [ ] Validate the print-ready invoice route with a real created invoice in the browser.

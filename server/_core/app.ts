@@ -1,36 +1,32 @@
 import express, { type Express } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
-import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { stripeWebhookHandler } from "../stripe";
 import { financialSummaryHandler } from "../summaryScheduler";
 
-// Builds the LedgerWise Express app with every API route registered.
-//
-// It intentionally does NOT call listen() and does NOT serve static assets, so
-// the same app can run in two environments:
-//   - as a long-lived Node server (server/_core/index.ts), which adds Vite in
-//     development, static file serving in production, and binds a port;
-//   - as a Vercel serverless function (api/index.ts), where Vercel serves the
-//     client build (dist/public) directly and only forwards API requests here.
+/**
+ * Builds the Express app with all API routes wired. Static asset serving is
+ * intentionally NOT included here:
+ *  - On Vercel, the built SPA in dist/public is served by the platform's
+ *    static/rewrite layer (see vercel.json), and this app runs only as the
+ *    /api/* serverless function.
+ *  - For local dev, server/devServer.ts wraps this with Vite middleware.
+ */
 export function createApp(): Express {
   const app = express();
 
-  // Stripe needs the raw request body to verify the webhook signature, so this
-  // route is registered before the JSON body parser below.
+  // Stripe needs the raw body to verify the webhook signature, so it is
+  // registered before the JSON body parser.
   app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), stripeWebhookHandler);
+
+  // Daily financial-summary cron target (Vercel Cron -> see vercel.json).
   app.post("/api/scheduled/financial-summary", financialSummaryHandler);
+  app.get("/api/scheduled/financial-summary", financialSummaryHandler);
 
-  // Configure body parser with a larger size limit for file uploads.
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
-  registerStorageProxy(app);
-  registerOAuthRoutes(app);
-
-  // tRPC API
   app.use(
     "/api/trpc",
     createExpressMiddleware({

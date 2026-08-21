@@ -1,5 +1,3 @@
-import { COOKIE_NAME } from "../shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { accountingRouter } from "./routers/accounting";
@@ -9,17 +7,14 @@ import { quotesRouter } from "./routers/quotes";
 import { settingsRouter } from "./routers/settings";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
-    }),
+    // Supabase sessions live client-side (supabase-js manages the token in
+    // storage). There is no server-held cookie to clear — the client calls
+    // supabase.auth.signOut() directly. This stays as a no-op success so any
+    // existing caller of trpc.auth.logout.mutate() keeps working.
+    logout: publicProcedure.mutation(() => ({ success: true } as const)),
   }),
   accounting: accountingRouter,
   insights: insightsRouter,

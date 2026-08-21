@@ -7,21 +7,10 @@ export type NotificationPayload = {
 };
 
 const TITLE_MAX_LENGTH = 1200;
-const CONTENT_MAX_LENGTH = 20000;
+const CONTENT_MAX_LENGTH = 4000; // Telegram sendMessage text limit is 4096.
 
-const trimValue = (value: string): string => value.trim();
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
-
-const buildEndpointUrl = (baseUrl: string): string => {
-  const normalizedBase = baseUrl.endsWith("/")
-    ? baseUrl
-    : `${baseUrl}/`;
-  return new URL(
-    "webdevtoken.v1.WebDevService/SendNotification",
-    normalizedBase
-  ).toString();
-};
 
 const validatePayload = (input: NotificationPayload): NotificationPayload => {
   if (!isNonEmptyString(input.title)) {
@@ -37,8 +26,8 @@ const validatePayload = (input: NotificationPayload): NotificationPayload => {
     });
   }
 
-  const title = trimValue(input.title);
-  const content = trimValue(input.content);
+  const title = input.title.trim();
+  const content = input.content.trim();
 
   if (title.length > TITLE_MAX_LENGTH) {
     throw new TRPCError({
@@ -58,57 +47,48 @@ const validatePayload = (input: NotificationPayload): NotificationPayload => {
 };
 
 /**
- * Dispatches a project-owner notification through the Manus Notification Service.
- * Returns `true` if the request was accepted, `false` when the upstream service
- * cannot be reached (callers can fall back to email/slack). Validation errors
- * bubble up as TRPC errors so callers can fix the payload.
+ * Dispatches a project-owner notification via the Telegram Bot API — same
+ * ops pattern as the 28FS CORA stack. Returns `true` if Telegram accepted the
+ * message, `false` when it can't be reached (callers can ignore or log).
+ * Validation errors bubble up as TRPC errors so callers can fix the payload.
  */
 export async function notifyOwner(
   payload: NotificationPayload
 ): Promise<boolean> {
   const { title, content } = validatePayload(payload);
 
-  if (!ENV.forgeApiUrl) {
+  if (!ENV.telegramBotToken || !ENV.telegramChatId) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service URL is not configured.",
+      message: "Telegram notification is not configured (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID).",
     });
   }
 
-  if (!ENV.forgeApiKey) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service API key is not configured.",
-    });
-  }
-
-  const endpoint = buildEndpointUrl(ENV.forgeApiUrl);
+  const endpoint = `https://api.telegram.org/bot${ENV.telegramBotToken}/sendMessage`;
+  const text = `*${title}*\n\n${content}`;
 
   try {
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${ENV.forgeApiKey}`,
-        "content-type": "application/json",
-        "connect-protocol-version": "1",
-      },
-      body: JSON.stringify({ title, content }),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chat_id: ENV.telegramChatId,
+        text,
+        parse_mode: "Markdown",
+      }),
     });
 
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       console.warn(
-        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${
-          detail ? `: ${detail}` : ""
-        }`
+        `[Notification] Telegram rejected message (${response.status})${detail ? `: ${detail}` : ""}`
       );
       return false;
     }
 
     return true;
   } catch (error) {
-    console.warn("[Notification] Error calling notification service:", error);
+    console.warn("[Notification] Error calling Telegram:", error);
     return false;
   }
 }

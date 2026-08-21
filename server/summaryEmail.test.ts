@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildFinancialSummaryEmail, hasEmailConfiguration } from "./summaryEmail";
-import { summaryCron } from "./summaryScheduler";
+import { isDueToday } from "./summaryScheduler";
 
 describe("financial summary email configuration", () => {
   it("recognizes a complete dedicated email configuration without exposing its values", () => {
@@ -15,8 +15,14 @@ describe("financial summary email configuration", () => {
     expect(email.html).toContain("$250.00");
   });
 
-  it("uses distinct weekly and monthly cadence expressions", () => {
-    expect(summaryCron("weekly", 3)).toBe("0 0 13 * * 3");
-    expect(summaryCron("monthly", 1, 15)).toBe("0 0 13 15 * *");
+  it("matches weekly schedules on the configured UTC weekday and monthly on the configured day", () => {
+    // 2026-01-07 is a Wednesday (getUTCDay() === 3).
+    const wednesday = new Date(Date.UTC(2026, 0, 7, 13, 0, 0));
+    expect(isDueToday({ cadence: "weekly", dayOfWeek: 3, dayOfMonth: 1 }, wednesday)).toBe(true);
+    expect(isDueToday({ cadence: "weekly", dayOfWeek: 1, dayOfMonth: 1 }, wednesday)).toBe(false);
+
+    const fifteenth = new Date(Date.UTC(2026, 0, 15, 13, 0, 0));
+    expect(isDueToday({ cadence: "monthly", dayOfWeek: 1, dayOfMonth: 15 }, fifteenth)).toBe(true);
+    expect(isDueToday({ cadence: "monthly", dayOfWeek: 1, dayOfMonth: 1 }, fifteenth)).toBe(false);
   });
 });

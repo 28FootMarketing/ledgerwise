@@ -5,7 +5,7 @@ vi.mock("./db", () => ({ listServices: vi.fn(), createService: vi.fn(), archiveS
 import * as db from "./db";
 import { quotesRouter } from "./routers/quotes";
 
-const context = { user: { id: 88, openId: "quote-owner", name: "Quote Owner", email: "quotes@example.com", loginMethod: "manus", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() }, req: { protocol: "https", headers: {} }, res: {} } as any;
+const context = { user: { id: 88, authUserId: "00000000-0000-0000-0000-000000000088", name: "Quote Owner", email: "quotes@example.com", loginMethod: "email", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() }, req: { protocol: "https", headers: {} }, res: {} } as any;
 
 describe("protected quote procedures", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -40,7 +40,7 @@ describe("protected quote procedures", () => {
   });
 
   it("rejects saved-quote retrieval, deletion, and conversion from a different authenticated workspace", async () => {
-    const foreignCaller = quotesRouter.createCaller({ ...context, user: { ...context.user, id: 99, openId: "another-workspace" } });
+    const foreignCaller = quotesRouter.createCaller({ ...context, user: { ...context.user, id: 99, authUserId: "00000000-0000-0000-0000-000000000099" } });
     vi.mocked(db.getQuote).mockResolvedValueOnce(undefined as any);
     vi.mocked(db.deleteQuote).mockRejectedValueOnce(new Error("Quote not found in this workspace."));
     vi.mocked(db.convertQuoteToInvoice).mockRejectedValueOnce(new Error("Quote not found in this workspace."));
