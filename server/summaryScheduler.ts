@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { parse as parseCookie } from "cookie";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME } from "../shared/const";
 import { createHeartbeatJob, updateHeartbeatJob } from "./_core/heartbeat";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
