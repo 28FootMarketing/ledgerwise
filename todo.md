@@ -1,0 +1,54 @@
+# Project TODO
+
+- [x] Build a protected application shell that redirects unauthenticated visitors to sign in and exposes the authenticated LedgerWise dashboard.
+- [x] Implement a monochrome, industrial dashboard layout with responsive navigation and a high-contrast typographic system.
+- [x] Model business contacts with separate customer and vendor types, including create, edit, list, and ownership controls.
+- [x] Model a chart of accounts with account classes and balances.
+- [x] Implement journal entries and journal lines that require debits and credits to balance before posting.
+- [x] Implement expense records with date, category/account, amount, vendor, notes, and posting behavior.
+- [x] Implement invoices, invoice line items, totals, issue/due dates, and draft, sent, paid, and overdue status transitions.
+- [x] Build a metrics dashboard for revenue, expenses, net profit, and outstanding invoices from the authenticated user’s stored data.
+- [x] Build income and expense reporting with date range filtering and summary charts based only on stored financial records.
+- [x] Build customer, vendor, expense, account, ledger, invoice, and report management screens with empty and loading states.
+- [x] Create a dedicated, print-ready invoice route with printing styles and a shareable invoice link.
+- [x] Add a server-side AI finance assistant that receives only the authenticated user’s relevant financial context and never fabricates figures.
+- [x] Add server-side AI expense categorization using the authenticated user’s chart of accounts and saved records.
+- [x] Create Stripe Checkout payment links for invoices with minimal Stripe identifiers stored locally.
+- [x] Verify Stripe webhook signatures at /api/stripe/webhook and mark invoices paid only after a confirmed successful payment event.
+- [x] Provide secure public invoice links with a client-facing, print-ready payment view.
+- [x] Build configurable weekly or monthly financial-summary delivery settings, including schedule persistence and idempotent scheduled execution.
+- [x] Integrate a transactional email provider for scheduled summary delivery after credentials are supplied.
+- [ ] Configure the selected dedicated transactional email provider with a verified sender identity and server-side credentials.
+- [ ] Activate live scheduled email delivery after the owner supplies the deferred dedicated-email credentials.
+- [x] Add automated test coverage for authentication gates, double-entry validation, invoice status calculation, dashboard calculations, and payment-webhook behavior.
+- [x] Validate the authenticated application dashboard and settings in desktop and mobile browser layouts.
+- [ ] Validate the print-ready invoice route with a real created invoice in the browser.
+- [ ] Validate the public client invoice route and payment CTA with a real sent invoice in the browser.
+- [x] Add user-owned custom tags with unique names and transaction assignments.
+- [x] Add category and custom-tag selection to transaction and expense tracking workflows.
+- [x] Add tag-based transaction filtering and reporting visibility.
+- [x] Test tag ownership, assignment, filtering, and categorization behavior.
+- [x] Support custom-tag assignment for manual ledger transactions in addition to expense transactions.
+- [x] Add tag-aware filtering and totals to financial reporting.
+- [x] Add automated tests for authenticated tag ownership, tag-assignment persistence, and tagged transaction filtering.
+- [x] Add a selected-tag filter to financial reports and tag-aware report calculations.
+- [x] Add service-level tests for persisted tag assignment retrieval and tag-filtered report behavior.
+- [x] Add testable service helpers for returning persisted expense and journal-entry tag assignments.
+- [x] Add service-helper tests for selected-tag financial and tag-summary calculations.
+- [x] Verify selected-tag filtering changes financial-summary expense and profit totals as expected.
+- [x] Add a dedicated Profit & Loss report with revenue, expenses, gross profit, and net profit calculations.
+- [x] Support date-range and custom-tag filtering in the Profit & Loss report.
+- [x] Add Profit & Loss calculation and filtering tests, then verify the report interface in the browser.
+- [x] Add automated coverage proving date-range and custom-tag filters change Profit & Loss results.
+- [x] Add direct Profit & Loss test coverage for date-range changes and combined date-plus-tag filtering.
+- [x] Add persisted quote and quote-line records owned by the authenticated workspace.
+- [x] Add a reusable service catalog with one-time and recurring quote items.
+- [x] Build an in-app quote builder with customer selection, item selection, quantities, and live totals.
+- [x] Add saved-quote management and conversion of a quote into a LedgerWise invoice.
+- [x] Test quote totals, ownership, persistence, and invoice conversion behavior.
+- [x] Add protected saved-quote reopening and deletion actions to the LedgerWise quote register.
+- [x] Add direct service-level tests for persisted quote lines and safe quote-to-invoice conversion behavior.
+- [x] Add protected-access coverage for quote management requests outside the authenticated workspace.
+- [x] Add a direct ownership-denial test showing another authenticated workspace cannot retrieve, delete, or convert a quote.
+- [x] Add protected procedure tests that reject cross-workspace quote retrieval, deletion, and conversion attempts.
+- [ ] Package the complete LedgerWise project source as a downloadable ZIP archive.

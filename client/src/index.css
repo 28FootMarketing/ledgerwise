@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px; --radius-xl: 0px;
+  --color-background: var(--background); --color-foreground: var(--foreground); --color-card: var(--card); --color-card-foreground: var(--card-foreground); --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground); --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground); --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground); --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground); --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground); --color-destructive: var(--destructive); --color-destructive-foreground: var(--destructive-foreground); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring); --color-sidebar: var(--sidebar); --color-sidebar-foreground: var(--sidebar-foreground); --color-sidebar-primary: var(--sidebar-primary); --color-sidebar-primary-foreground: var(--sidebar-primary-foreground); --color-sidebar-accent: var(--sidebar-accent); --color-sidebar-accent-foreground: var(--sidebar-accent-foreground); --color-sidebar-border: var(--sidebar-border); --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root { --background: #f1f1ef; --foreground: #171717; --card: #f9f9f7; --card-foreground: #171717; --popover: #f9f9f7; --popover-foreground: #171717; --primary: #171717; --primary-foreground: #fff; --secondary: #dededb; --secondary-foreground: #171717; --muted: #e7e7e4; --muted-foreground: #656565; --accent: #d7d7d3; --accent-foreground: #171717; --destructive: #8f1d1d; --destructive-foreground: #fff; --border: #17171722; --input: #17171733; --ring: #171717; --sidebar: #171717; --sidebar-foreground: #fff; --sidebar-primary: #fff; --sidebar-primary-foreground: #171717; --sidebar-accent: #fff; --sidebar-accent-foreground: #171717; --sidebar-border: #ffffff22; --sidebar-ring: #fff; }
+
+@layer base { * { @apply border-border outline-ring/50; } body { @apply bg-background text-foreground; font-family: "DM Sans", Arial, sans-serif; } button:not(:disabled), [role="button"]:not([aria-disabled="true"]), [type="button"]:not(:disabled), [type="submit"]:not(:disabled), a[href], select:not(:disabled) { @apply cursor-pointer; } }
+@layer components { .ledger-kicker { font-size: 10px; font-weight: 700; letter-spacing: .17em; line-height: 1; text-transform: uppercase; } .invoice-sheet { min-height: 1056px; } .flex { min-height: 0; min-width: 0; } }
+@media print { @page { size: auto; margin: 12mm; } body { background: white !important; } }
