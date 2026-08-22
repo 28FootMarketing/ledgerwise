@@ -6,9 +6,9 @@ import { index, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex, 
  * source of truth for identity. Extend this file with additional tables as
  * your product grows. Columns use camelCase to match generated types.
  */
-export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
+export const userRoleEnum = pgEnum("ledge_user_role", ["user", "admin"]);
 
-export const users = pgTable("users", {
+export const users = pgTable("ledge_users", {
   id: serial("id").primaryKey(),
   /** Supabase Auth user id (auth.users.id, uuid). Unique per user. */
   authUserId: varchar("authUserId", { length: 64 }).notNull().unique(),
@@ -24,9 +24,9 @@ export const users = pgTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-export const contactKindEnum = pgEnum("contact_kind", ["customer", "vendor"]);
+export const contactKindEnum = pgEnum("ledge_contact_kind", ["customer", "vendor"]);
 
-export const contacts = pgTable("contacts", {
+export const contacts = pgTable("ledge_contacts", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   kind: contactKindEnum("kind").notNull(),
@@ -37,12 +37,12 @@ export const contacts = pgTable("contacts", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-}, table => [index("contacts_user_kind_idx").on(table.userId, table.kind)]);
+}, table => [index("ledge_contacts_user_kind_idx").on(table.userId, table.kind)]);
 
-export const accountTypeEnum = pgEnum("account_type", ["asset", "liability", "equity", "income", "expense"]);
-export const yesNoEnum = pgEnum("yes_no", ["yes", "no"]);
+export const accountTypeEnum = pgEnum("ledge_account_type", ["asset", "liability", "equity", "income", "expense"]);
+export const yesNoEnum = pgEnum("ledge_yes_no", ["yes", "no"]);
 
-export const accounts = pgTable("accounts", {
+export const accounts = pgTable("ledge_accounts", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   code: varchar("code", { length: 24 }).notNull(),
@@ -55,12 +55,12 @@ export const accounts = pgTable("accounts", {
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 }, table => [
   uniqueIndex("accounts_user_code_unique").on(table.userId, table.code),
-  index("accounts_user_type_idx").on(table.userId, table.type),
+  index("ledge_accounts_user_type_idx").on(table.userId, table.type),
 ]);
 
-export const journalSourceTypeEnum = pgEnum("journal_source_type", ["manual", "invoice", "expense", "payment"]);
+export const journalSourceTypeEnum = pgEnum("ledge_journal_source_type", ["manual", "invoice", "expense", "payment"]);
 
-export const journalEntries = pgTable("journalEntries", {
+export const journalEntries = pgTable("ledge_journalEntries", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   postedAt: timestamp("postedAt").notNull(),
@@ -68,9 +68,9 @@ export const journalEntries = pgTable("journalEntries", {
   sourceType: journalSourceTypeEnum("sourceType").default("manual").notNull(),
   sourceId: integer("sourceId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => [index("journal_entries_user_date_idx").on(table.userId, table.postedAt)]);
+}, table => [index("ledge_journal_entries_user_date_idx").on(table.userId, table.postedAt)]);
 
-export const journalLines = pgTable("journalLines", {
+export const journalLines = pgTable("ledge_journalLines", {
   id: serial("id").primaryKey(),
   journalEntryId: integer("journalEntryId").notNull(),
   accountId: integer("accountId").notNull(),
@@ -78,13 +78,13 @@ export const journalLines = pgTable("journalLines", {
   creditCents: integer("creditCents").default(0).notNull(),
   description: varchar("description", { length: 280 }),
 }, table => [
-  index("journal_lines_entry_idx").on(table.journalEntryId),
-  index("journal_lines_account_idx").on(table.accountId),
+  index("ledge_journal_lines_entry_idx").on(table.journalEntryId),
+  index("ledge_journal_lines_account_idx").on(table.accountId),
 ]);
 
-export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "sent", "paid", "overdue"]);
+export const invoiceStatusEnum = pgEnum("ledge_invoice_status", ["draft", "sent", "paid", "overdue"]);
 
-export const invoices = pgTable("invoices", {
+export const invoices = pgTable("ledge_invoices", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   customerId: integer("customerId").notNull(),
@@ -106,22 +106,22 @@ export const invoices = pgTable("invoices", {
 }, table => [
   uniqueIndex("invoices_user_number_unique").on(table.userId, table.number),
   uniqueIndex("invoices_public_token_unique").on(table.publicToken),
-  index("invoices_user_status_idx").on(table.userId, table.status),
-  index("invoices_customer_idx").on(table.customerId),
+  index("ledge_invoices_user_status_idx").on(table.userId, table.status),
+  index("ledge_invoices_customer_idx").on(table.customerId),
 ]);
 
-export const invoiceLineItems = pgTable("invoiceLineItems", {
+export const invoiceLineItems = pgTable("ledge_invoiceLineItems", {
   id: serial("id").primaryKey(),
   invoiceId: integer("invoiceId").notNull(),
   description: varchar("description", { length: 280 }).notNull(),
   quantity: integer("quantity").notNull(),
   unitAmountCents: integer("unitAmountCents").notNull(),
   lineTotalCents: integer("lineTotalCents").notNull(),
-}, table => [index("invoice_items_invoice_idx").on(table.invoiceId)]);
+}, table => [index("ledge_invoice_items_invoice_idx").on(table.invoiceId)]);
 
-export const billingFrequencyEnum = pgEnum("billing_frequency", ["one_time", "monthly"]);
+export const billingFrequencyEnum = pgEnum("ledge_billing_frequency", ["one_time", "monthly"]);
 
-export const serviceCatalog = pgTable("serviceCatalog", {
+export const serviceCatalog = pgTable("ledge_serviceCatalog", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   name: varchar("name", { length: 180 }).notNull(),
@@ -133,13 +133,13 @@ export const serviceCatalog = pgTable("serviceCatalog", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 }, table => [
-  index("services_user_category_idx").on(table.userId, table.category),
-  index("services_user_active_idx").on(table.userId, table.isActive),
+  index("ledge_services_user_category_idx").on(table.userId, table.category),
+  index("ledge_services_user_active_idx").on(table.userId, table.isActive),
 ]);
 
-export const quoteStatusEnum = pgEnum("quote_status", ["draft", "sent", "accepted", "declined", "converted"]);
+export const quoteStatusEnum = pgEnum("ledge_quote_status", ["draft", "sent", "accepted", "declined", "converted"]);
 
-export const quotes = pgTable("quotes", {
+export const quotes = pgTable("ledge_quotes", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   customerId: integer("customerId").notNull(),
@@ -156,11 +156,11 @@ export const quotes = pgTable("quotes", {
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 }, table => [
   uniqueIndex("quotes_user_number_unique").on(table.userId, table.number),
-  index("quotes_user_status_idx").on(table.userId, table.status),
-  index("quotes_customer_idx").on(table.customerId),
+  index("ledge_quotes_user_status_idx").on(table.userId, table.status),
+  index("ledge_quotes_customer_idx").on(table.customerId),
 ]);
 
-export const quoteLineItems = pgTable("quoteLineItems", {
+export const quoteLineItems = pgTable("ledge_quoteLineItems", {
   id: serial("id").primaryKey(),
   quoteId: integer("quoteId").notNull(),
   serviceCatalogId: integer("serviceCatalogId"),
@@ -171,11 +171,11 @@ export const quoteLineItems = pgTable("quoteLineItems", {
   lineTotalCents: integer("lineTotalCents").notNull(),
   billingFrequency: billingFrequencyEnum("billingFrequency").default("one_time").notNull(),
 }, table => [
-  index("quote_items_quote_idx").on(table.quoteId),
-  index("quote_items_service_idx").on(table.serviceCatalogId),
+  index("ledge_quote_items_quote_idx").on(table.quoteId),
+  index("ledge_quote_items_service_idx").on(table.serviceCatalogId),
 ]);
 
-export const expenses = pgTable("expenses", {
+export const expenses = pgTable("ledge_expenses", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   vendorId: integer("vendorId"),
@@ -187,44 +187,44 @@ export const expenses = pgTable("expenses", {
   journalEntryId: integer("journalEntryId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-}, table => [index("expenses_user_date_idx").on(table.userId, table.incurredAt)]);
+}, table => [index("ledge_expenses_user_date_idx").on(table.userId, table.incurredAt)]);
 
-export const tags = pgTable("tags", {
+export const tags = pgTable("ledge_tags", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull(),
   name: varchar("name", { length: 64 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => [
   uniqueIndex("tags_user_name_unique").on(table.userId, table.name),
-  index("tags_user_idx").on(table.userId),
+  index("ledge_tags_user_idx").on(table.userId),
 ]);
 
-export const expenseTags = pgTable("expenseTags", {
+export const expenseTags = pgTable("ledge_expenseTags", {
   id: serial("id").primaryKey(),
   expenseId: integer("expenseId").notNull(),
   tagId: integer("tagId").notNull(),
 }, table => [
   uniqueIndex("expense_tags_unique").on(table.expenseId, table.tagId),
-  index("expense_tags_tag_idx").on(table.tagId),
+  index("ledge_expense_tags_tag_idx").on(table.tagId),
 ]);
 
-export const journalEntryTags = pgTable("journalEntryTags", {
+export const journalEntryTags = pgTable("ledge_journalEntryTags", {
   id: serial("id").primaryKey(),
   journalEntryId: integer("journalEntryId").notNull(),
   tagId: integer("tagId").notNull(),
 }, table => [
   uniqueIndex("journal_entry_tags_unique").on(table.journalEntryId, table.tagId),
-  index("journal_entry_tags_tag_idx").on(table.tagId),
+  index("ledge_journal_entry_tags_tag_idx").on(table.tagId),
 ]);
 
-export const summaryCadenceEnum = pgEnum("summary_cadence", ["weekly", "monthly"]);
+export const summaryCadenceEnum = pgEnum("ledge_summary_cadence", ["weekly", "monthly"]);
 
 /**
  * Vercel Cron hits one shared daily endpoint (see vercel.json), so there is
  * no per-user external task id to track anymore — the handler scans every
  * enabled row and decides which are due today. See server/summaryScheduler.ts.
  */
-export const summarySettings = pgTable("summarySettings", {
+export const summarySettings = pgTable("ledge_summarySettings", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull().unique(),
   recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
@@ -237,9 +237,9 @@ export const summarySettings = pgTable("summarySettings", {
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
-export const summaryDeliveryStatusEnum = pgEnum("summary_delivery_status", ["sent", "failed"]);
+export const summaryDeliveryStatusEnum = pgEnum("ledge_summary_delivery_status", ["sent", "failed"]);
 
-export const summaryDeliveries = pgTable("summaryDeliveries", {
+export const summaryDeliveries = pgTable("ledge_summaryDeliveries", {
   id: serial("id").primaryKey(),
   settingsId: integer("settingsId").notNull(),
   periodStart: timestamp("periodStart").notNull(),
@@ -248,7 +248,7 @@ export const summaryDeliveries = pgTable("summaryDeliveries", {
   deliveryStatus: summaryDeliveryStatusEnum("deliveryStatus").notNull(),
   providerMessageId: varchar("providerMessageId", { length: 255 }),
   errorMessage: text("errorMessage"),
-}, table => [index("summary_deliveries_settings_idx").on(table.settingsId, table.sentAt)]);
+}, table => [index("ledge_summary_deliveries_settings_idx").on(table.settingsId, table.sentAt)]);
 
 export type AccountType = "asset" | "liability" | "equity" | "income" | "expense";
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
